@@ -1,0 +1,433 @@
+openapi: 3.0.0
+info:
+  description: OpenAPI specification for AUSF
+  title: AUSF API
+  version: 1.0.0
+externalDocs:
+  description: 3GPP TS 29.509 V15.2.0; 5G System; 3GPP TS Authentication Server services.
+  url: http://www.3gpp.org/ftp/Specs/archive/29_series/29.509
+servers:
+- url: '{apiRoot}/nausf-auth/v1'
+  variables:
+    apiRoot:
+      default: https://example.com
+      description: apiRoot as defined in subclause subclause 4.4 of 3GPP TS 29.501.
+security:
+- {}
+- oAuth2ClientCredentials:
+  - nausf-auth
+paths:
+  /ue-authentications:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthenticationInfo'
+        required: true
+      responses:
+        201:
+          content:
+            application/3gppHal+json:
+              schema:
+                $ref: '#/components/schemas/UEAuthenticationCtx'
+          description: UEAuthenticationCtx
+          headers:
+            Location:
+              description: 'Contains the URI of the newly created resource according
+                to the structure: {apiRoot}/nausf-auth/v1/ue-authentications/{authCtxId}'
+              explode: false
+              required: true
+              schema:
+                type: string
+              style: simple
+        400:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad Request from the AMF
+        403:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Fordidden due to serving network not authorized
+        500:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Internal Server Error
+  /ue-authentications/{authCtxId}/5g-aka-confirmation:
+    put:
+      parameters:
+      - explode: false
+        in: path
+        name: authCtxId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmationData'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmationDataResponse'
+          description: Request processed (EAP success or Failure)
+        400:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad Request
+        500:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Internal Server Error
+  /ue-authentications/{authCtxId}/eap-session:
+    post:
+      operationId: EapAuthMethod
+      parameters:
+      - explode: false
+        in: path
+        name: authCtxId
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EapSession'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EapSession'
+            application/3gppHal+json:
+              schema:
+                properties:
+                  eapPayload:
+                    $ref: '#/components/schemas/EapPayload'
+                  _links:
+                    additionalProperties:
+                      $ref: '#/components/schemas/LinksValueSchema'
+                    description: 'URI : /{eapSessionUri}'
+                    minProperties: 1
+                    type: object
+                required:
+                - _links
+                - eapPayload
+                type: object
+          description: Use to handle or close the EAP session
+        400:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Bad Request
+        500:
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+          description: Internal Server Error
+components:
+  schemas:
+    AuthenticationInfo:
+      example:
+        servingNetworkName: servingNetworkName
+        supiOrSuci: supiOrSuci
+        resynchronizationInfo:
+          rand: rand
+          auts: auts
+        traceData:
+          eventList: eventList
+          collectionEntityIpv6Addr: 2001:db8:85a3::8a2e:370:7334
+          collectionEntityIpv4Addr: 198.51.100.1
+          traceRef: traceRef
+          interfaceList: interfaceList
+          neTypeList: neTypeList
+      properties:
+        supiOrSuci:
+          pattern: ^(imsi-[0-9]{5,15}|nai-.+| suci-(0-[0-9]{3}-[0-9]{2,3}|[1-7]-.+)-[0-9]{1,4}-(0-0-.+|[a-fA-F1-9]-([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])-[a-fA-F0-9]+)|.+)$
+          type: string
+        servingNetworkName:
+          pattern: ^5G:mnc[0-9]{3}[.]mcc[0-9]{3}[.]3gppnetwork[.]org$
+          type: string
+        resynchronizationInfo:
+          $ref: '#/components/schemas/ResynchronizationInfo'
+        traceData:
+          $ref: '#/components/schemas/TraceData'
+      required:
+      - servingNetworkName
+      - supiOrSuci
+      type: object
+    UEAuthenticationCtx:
+      properties:
+        authType:
+          $ref: '#/components/schemas/AuthType'
+        5gAuthData:
+          oneOf:
+          - $ref: '#/components/schemas/Av5gAka'
+          - $ref: '#/components/schemas/EapPayload'
+        _links:
+          additionalProperties:
+            $ref: '#/components/schemas/LinksValueSchema'
+          type: object
+        servingNetworkName:
+          pattern: ^5G:mnc[0-9]{3}[.]mcc[0-9]{3}[.]3gppnetwork[.]org$
+          type: string
+      required:
+      - 5gAuthData
+      - _links
+      - authType
+      type: object
+    Av5gAka:
+      properties:
+        rand:
+          pattern: ^[A-Fa-f0-9]{32}$
+          type: string
+        hxresStar:
+          pattern: '[A-Fa-f0-9]{32}'
+          type: string
+        autn:
+          pattern: ^[A-Fa-f0-9]{32}$
+          type: string
+      required:
+      - autn
+      - hxresStar
+      - rand
+      type: object
+    ConfirmationData:
+      example:
+        resStar: resStar
+      properties:
+        resStar:
+          pattern: '[A-Fa-f0-9]{32}'
+          type: string
+      required:
+      - resStar
+      type: object
+    ConfirmationDataResponse:
+      example:
+        kseaf: kseaf
+        supi: supi
+      properties:
+        authResult:
+          $ref: '#/components/schemas/AuthResult'
+        supi:
+          pattern: ^(imsi-[0-9]{5,15}|nai-.+|.+)$
+          type: string
+        kseaf:
+          pattern: '[A-Fa-f0-9]{64}'
+          type: string
+      required:
+      - authResult
+      type: object
+    EapSession:
+      example:
+        eapPayload: eapPayload
+        _links: {}
+        kSeaf: kSeaf
+        supi: supi
+      properties:
+        eapPayload:
+          description: contains an EAP packet
+          format: base64
+          type: string
+        kSeaf:
+          pattern: '[A-Fa-f0-9]{64}'
+          type: string
+        _links:
+          additionalProperties:
+            $ref: '#/components/schemas/LinksValueSchema'
+          type: object
+        authResult:
+          $ref: '#/components/schemas/AuthResult'
+        supi:
+          pattern: ^(imsi-[0-9]{5,15}|nai-.+|.+)$
+          type: string
+      required:
+      - eapPayload
+      type: object
+    AuthResult:
+      enum:
+      - AUTHENTICATION_SUCCESS
+      - AUTHENTICATION_FAILURE
+      - AUTHENTICATION_ONGOING
+      type: string
+    EapPayload:
+      description: contains an EAP packet
+      format: base64
+      type: string
+    Kseaf:
+      pattern: '[A-Fa-f0-9]{64}'
+      type: string
+    ResStar:
+      pattern: '[A-Fa-f0-9]{32}'
+      type: string
+    HxresStar:
+      pattern: '[A-Fa-f0-9]{32}'
+      type: string
+    AuthType:
+      anyOf:
+      - enum:
+        - 5G_AKA
+        - EAP_AKA_PRIME
+        - EAP_TLS
+        type: string
+      - type: string
+    ProblemDetails:
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          format: int32
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        cause:
+          type: string
+        invalidParams:
+          items:
+            $ref: '#/components/schemas/InvalidParam'
+          minItems: 1
+          type: array
+      type: object
+    Uri:
+      type: string
+    InvalidParam:
+      properties:
+        param:
+          type: string
+        reason:
+          type: string
+      required:
+      - param
+      type: object
+    LinksValueSchema:
+      oneOf:
+      - items:
+          $ref: '#/components/schemas/Link'
+        minItems: 1
+        type: array
+      - $ref: '#/components/schemas/Link'
+    Link:
+      properties:
+        href:
+          type: string
+      type: object
+    SupiOrSuci:
+      pattern: ^(imsi-[0-9]{5,15}|nai-.+| suci-(0-[0-9]{3}-[0-9]{2,3}|[1-7]-.+)-[0-9]{1,4}-(0-0-.+|[a-fA-F1-9]-([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])-[a-fA-F0-9]+)|.+)$
+      type: string
+    ServingNetworkName:
+      pattern: ^5G:mnc[0-9]{3}[.]mcc[0-9]{3}[.]3gppnetwork[.]org$
+      type: string
+    ResynchronizationInfo:
+      example:
+        rand: rand
+        auts: auts
+      properties:
+        rand:
+          pattern: ^[A-Fa-f0-9]{32}$
+          type: string
+        auts:
+          pattern: ^[A-Fa-f0-9]{28}$
+          type: string
+      required:
+      - auts
+      - rand
+      type: object
+    Rand:
+      pattern: ^[A-Fa-f0-9]{32}$
+      type: string
+    Auts:
+      pattern: ^[A-Fa-f0-9]{28}$
+      type: string
+    TraceData:
+      example:
+        eventList: eventList
+        collectionEntityIpv6Addr: 2001:db8:85a3::8a2e:370:7334
+        collectionEntityIpv4Addr: 198.51.100.1
+        traceRef: traceRef
+        interfaceList: interfaceList
+        neTypeList: neTypeList
+      nullable: true
+      properties:
+        traceRef:
+          pattern: ^[0-9]{3}[0-9]{2,3}-[A-Fa-f0-9]{6}$
+          type: string
+        traceDepth:
+          $ref: '#/components/schemas/TraceDepth'
+        neTypeList:
+          pattern: ^[A-Fa-f0-9]+$
+          type: string
+        eventList:
+          pattern: ^[A-Fa-f0-9]+$
+          type: string
+        collectionEntityIpv4Addr:
+          example: 198.51.100.1
+          pattern: ^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$
+          type: string
+        collectionEntityIpv6Addr:
+          $ref: '#/components/schemas/Ipv6Addr'
+        interfaceList:
+          pattern: ^[A-Fa-f0-9]+$
+          type: string
+      required:
+      - eventList
+      - neTypeList
+      - traceDepth
+      - traceRef
+      type: object
+    TraceDepth:
+      anyOf:
+      - enum:
+        - MINIMUM
+        - MEDIUM
+        - MAXIMUM
+        - MINIMUM_WO_VENDOR_EXTENSION
+        - MEDIUM_WO_VENDOR_EXTENSION
+        - MAXIMUM_WO_VENDOR_EXTENSION
+        type: string
+      - type: string
+    Ipv4Addr:
+      example: 198.51.100.1
+      pattern: ^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$
+      type: string
+    Ipv6Addr:
+      allOf:
+      - pattern: ^((:|(0?|([1-9a-f][0-9a-f]{0,3}))):)((0?|([1-9a-f][0-9a-f]{0,3})):){0,6}(:|(0?|([1-9a-f][0-9a-f]{0,3})))$
+      - pattern: ^((([^:]+:){7}([^:]+))|((([^:]+:)*[^:]+)?::(([^:]+:)*[^:]+)?))$
+      example: 2001:db8:85a3::8a2e:370:7334
+      type: string
+    Autn:
+      pattern: ^[A-Fa-f0-9]{32}$
+      type: string
+    Supi:
+      pattern: ^(imsi-[0-9]{5,15}|nai-.+|.+)$
+      type: string
+  securitySchemes:
+    oAuth2ClientCredentials:
+      flows:
+        clientCredentials:
+          scopes:
+            nausf-auth: Access to Nausf_UEAuthentication API
+          tokenUrl: '{nrfApiRoot}/oauth2/token'
+      type: oauth2
