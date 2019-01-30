@@ -13,7 +13,7 @@ type UeAuthenticationCtx struct {
 
 	AuthType *AuthType `json:"authType"`
 
-	Var5gAuthData *OneOfAv5gAkastring `json:"5gAuthData"`
+	// Var5gAuthData *OneOfAv5gAkastring `json:"5gAuthData"`
 
 	Links map[string]LinksValueSchema `json:"_links"`
 

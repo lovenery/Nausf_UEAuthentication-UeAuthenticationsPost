@@ -10,7 +10,9 @@
 package openapi
 
 import (
+	"fmt"
 	"net/http"
+	"encoding/json"
 )
 
 // EapAuthMethod - 
@@ -27,6 +29,27 @@ func UeAuthenticationsAuthCtxId5gAkaConfirmationPut(w http.ResponseWriter, r *ht
 
 // UeAuthenticationsPost - 
 func UeAuthenticationsPost(w http.ResponseWriter, r *http.Request) {
+	var ueAuthenticationCtx UeAuthenticationCtx
+
+	json.NewDecoder(r.Body).Decode(&ueAuthenticationCtx)
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.WriteHeader(http.StatusOK)
+
+	if ueAuthenticationCtx.ServingNetworkName != "" {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "HTTP: 200\n")
+	} else {
+		var problemDetails = ProblemDetails {
+			Title: "Invalid Parameter",
+			Status: http.StatusForbidden,
+			InvalidParams: []InvalidParam{InvalidParam{Param: "ServingNetworkName", Reason: "ServingNetworkName should not be empty"}},
+		}
+		problemDetails.Cause = "AUTHENTICATION_REJECTED"
+
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(&problemDetails)
+	}
+
+	fmt.Printf("ueAuthenticationCtx: %+v\n", ueAuthenticationCtx)
+	fmt.Fprintf(w, "Done\n")
 }
